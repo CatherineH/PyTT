@@ -12,21 +12,25 @@ clr.AddReference("System.Drawing")
 #import Thomas Lehner's drivers
 clr.AddReference("ttInterface.dll")
 clr.AddReference("UsbDll.dll")
+clr.AddReference("ZedGraph.dll")
 
 #load timetag device libraries
 from TimeTag import Logic, TTInterface, Tag, Test, TimetagReader, UsbException;
 from Timetag import TimeTagDevice;
 from UsbDll import Tag,TTHelper;
+#load the zedgraph library for histogram graph
+from ZedGraph import ZedGraphControl;
 #this module is used for importing saved parameters
 from ParaHandling import ParaHandling;
 #this module defines a control for all of the buttons on the Logic tab 
 from LogicChooser import *;
+from WindowsControlsHelperFunctions import *
 #Now for all the windows things we'll need
 from System import DateTime, Array, Byte;
 from System.Runtime.CompilerServices import StrongBox;
 from System.ComponentModel import Container;
 from System.Drawing import ContentAlignment, Font, Point, Size, FontStyle, GraphicsUnit;
-from System.Windows.Forms import Application, AutoScaleMode, DialogResult, SizeGripStyle, ToolStrip, ToolStripItem, Padding, AnchorStyles, Form, Button, RichTextBox, Timer, CheckBox, SaveFileDialog, Label, TextBox, GroupBox, TabControl, TabPage, ToolTip, ToolStripMenuItem, MenuStrip, ToolStripItem, OpenFileDialog;
+from System.Windows.Forms import Application, AutoScaleMode, DialogResult, FormBorderStyle, FormWindowState, SizeGripStyle, ToolStrip, ToolStripItem, Padding, AnchorStyles, Form, Button, RichTextBox, Timer, CheckBox, SaveFileDialog, Label, TextBox, GroupBox, TabControl, TabPage, ToolTip, ToolStripMenuItem, MenuStrip, Screen, ToolStripItem, OpenFileDialog;
 
 class FormTimetagExplorer(Form):
 	
@@ -80,6 +84,7 @@ class FormTimetagExplorer(Form):
 		self.tabControl1 =  TabControl();
 		self.tabPageTimeTag =  TabPage();
 		self.tabPageSaveTags =  TabPage();
+		self.tabPageHistogram =  TabPage();
 		self.checkBoxSaveTags =  CheckBox();
 		self.labelSize =  Label();
 		self.label1 =  Label();
@@ -132,12 +137,21 @@ class FormTimetagExplorer(Form):
 		self.tabControl1.SuspendLayout();
 		self.tabPageTimeTag.SuspendLayout();
 		self.tabPageSaveTags.SuspendLayout();
+		self.tabPageHistogram.SuspendLayout();
 		self.tabPageInputs.SuspendLayout();
 		self.tabPageDelay.SuspendLayout();
 		self.tabPageLogic.SuspendLayout();
 		self.tabPageDebug.SuspendLayout();
 		self.menuStrip1.SuspendLayout();
 		self.SuspendLayout();
+		self.histoGraph = ZedGraphControl();
+		
+		#histogram calculation data... right now I"m just looking at a basic way of doing it.
+		self.minimum_interval = 0.156;
+		self.max_bins = 100;
+		self.bins_frequency =[0]*self.max_bins;
+		#self.myBar;
+		
 		
 		#now for all of the VisualStudio generated designer code
 		    # 
@@ -295,6 +309,7 @@ class FormTimetagExplorer(Form):
 		self.tabControl1.Anchor = (((AnchorStyles.Top | AnchorStyles.Bottom)| AnchorStyles.Left));
 		self.tabControl1.Controls.Add(self.tabPageTimeTag);
 		self.tabControl1.Controls.Add(self.tabPageSaveTags);
+		self.tabControl1.Controls.Add(self.tabPageHistogram);
 		self.tabControl1.Controls.Add(self.tabPageInputs);
 		self.tabControl1.Controls.Add(self.tabPageDelay);
 		self.tabControl1.Controls.Add(self.tabPageLogic);
@@ -340,6 +355,16 @@ class FormTimetagExplorer(Form):
 		self.tabPageSaveTags.TabIndex = 4;
 		self.tabPageSaveTags.Text = "SaveTags";
 		self.tabPageSaveTags.UseVisualStyleBackColor = True;
+						    # 
+		    # tabPageHistogram
+		    # 
+		self.tabPageHistogram.Controls.Add(self.histoGraph)
+		self.tabPageHistogram.Location =  Point(4, 22);
+		self.tabPageHistogram.Name = "tabPageHistogram";
+		self.tabPageHistogram.Size =  Size(475, 348);
+		self.tabPageHistogram.TabIndex = 5;
+		self.tabPageHistogram.Text = "Histogram";
+		self.tabPageHistogram.UseVisualStyleBackColor = True;
 		    # 
 		    # checkBoxSaveTags
 		    # 
@@ -803,12 +828,30 @@ class FormTimetagExplorer(Form):
 		    # 
 		self.timerButtons.Enabled = True;
 		self.timerButtons.Tick +=  self.timerButtons_Tick;
+		
+		# 
+		# histoGraph
+		#
+		self.histoGraph.Location = Point(10, 10);
+		self.histoGraph.Name = "histoGraph";
+		self.histoGraph.ScrollGrace = 0;
+		self.histoGraph.ScrollMaxX = 0;
+		self.histoGraph.ScrollMaxY = 0;
+		self.histoGraph.ScrollMaxY2 = 0;
+		self.histoGraph.ScrollMinX = 0;
+		self.histoGraph.ScrollMinY = 0;
+		self.histoGraph.ScrollMinY2 = 0;
+		self.histoGraph.Size = Size(400, 250);
+		self.histoGraphPane = self.histoGraph.GraphPane;
+		self.histoGraphPane.Title.Text = "Gyroscope information";
+		self.histoGraphPane.XAxis.Title.Text = "Time (ns)";
+		self.histoGraphPane.YAxis.Title.Text = "Frequency";
 		    # 
 		    # FormTimetagExplorer
 		    # 
 		self.AutoScaleDimensions =  Size(6, 13);
 		self.AutoScaleMode = AutoScaleMode.Font;
-		self.ClientSize =  Size(881, 448);
+		#self.ClientSize =  Size(881, 448);
 		self.Controls.Add(self.tabControl1);
 		self.Controls.Add(self.richTextBox1);
 		self.Controls.Add(self.buttonCalibrate);
@@ -816,8 +859,8 @@ class FormTimetagExplorer(Form):
 		self.Controls.Add(self.buttonConnect);
 		self.Controls.Add(self.menuStrip1);
 		self.MainMenuStrip = self.menuStrip1;
-		self.MaximizeBox = False;
-		self.MaximumSize =  Size(1500, 958);
+		#self.MaximizeBox = False;
+		#self.MaximumSize =  Size(1500, 958);
 		self.Name = "FormTimetagExplorer";
 		self.SizeGripStyle = SizeGripStyle.Hide;
 		self.Text = "PyTT";
@@ -1040,13 +1083,19 @@ class FormTimetagExplorer(Form):
 						self.ledButtons[i].BackColor = self.buttonCalibrate.BackColor;
 
 	def FormTimetagDemo_Load(self, sender, event):
+		#self.TopMost = True;
+		#self.FormBorderStyle = FormBorderStyle.None;
+		self.WindowState = FormWindowState.Maximized;
 		self.tabControl1.TabPages.Remove(self.tabPageDebug);
+		self.tabControl1.Size =  Size(self.Width/2, self.Height-62);
+		self.richTextBox1.Location =  Point(self.Width/2+30, 84);
+		self.richTextBox1.Size = Size(self.Width/2 -60,self.Height-90);
 		#duplicates the rows of logic selector buttons on the Logic tabs
-		self.DublicateLogic();
+		DublicateLogic(self);
 		#duplicates the negative edge/voltage settings for the input channels
-		self.DublicateInputs();
+		DublicateInputs(self);
 		#duplicates the delay inputs on the delay tabs
-		self.DublicateDelays();
+		DublicateDelays(self);
 		#not sure if these things are doing anything...
 		self.paraHandling.SaveAdditional(LogicChooser());
 		self.paraHandling.Init(self.tabControl1);
@@ -1071,110 +1120,26 @@ class FormTimetagExplorer(Form):
 	def DoClose(self):        
 		if self.ttInterface != None:
 			self.ttInterface.Close();
-
-	#copies the control
-	def DublicateControl(self,dest,source, i, offset):
-		dest.Left = source.Left;
-		dest.Size = source.Size;
-		dest.Text = source.Text;
-		dest.Top = source.Top + offset * i;
-		dest.Name = source.Name+str(i);
-		dest.TabIndex = source.TabIndex + i * 10;
-		dest.Enabled = source.Enabled;
-		return dest
-
-	def DublicateLogic(self):
-		self.choosers.append(self.logicChooser1)
-		#remove the placeholder controls created in __init__
-		self.tabPageLogic.Controls.Remove(self.logicChooser1);
-		self.tabPageLogic.Controls.Remove(self.labelPatternRate);
-		#for each row in the logic choosers
-		for i in range(0, self.MaxPattern):
-			offset = 22;
 			
-			lc = LogicChooser();
-			
-			lc.Top = self.logicChooser1.Top + i * offset;
-			lc.Left = self.logicChooser1.Left;
-			lc.Visible = True;
-			lc.TabIndex = self.logicChooser1.TabIndex + 20 * i;
-			lc.Name = self.logicChooser1.Name + str(i);
-			self.choosers.append(lc)
-			#for each button for the channel selectors
-			for j in range(0,self.MaxPattern):
-				self.choosers[i].Controls[j].Top = self.logicChooser1.Top + i * offset;
-				self.choosers[i].Controls[j].Left += self.logicChooser1.Left;
-				self.tabPageLogic.Controls.Add(self.choosers[i].Controls[j]);
-			l=Label();
-			self.DublicateControl(l, self.labelPatternRate, i, offset);
-			l.TextAlign = self.labelPatternRate.TextAlign;
-			self.patternRateLabels[1+i] = l;
-			self.tabPageLogic.Controls.Add(l);
-
-			
-	def DublicateInputs(self):
-		offset = 18;
-		#remove placeholder controls from designers 
-		self.tabPageInputs.Controls.Remove(self.textBoxInputName);
-		self.tabPageInputs.Controls.Remove(self.textBoxInputLevel);
-		self.tabPageInputs.Controls.Remove(self.checkBoxInvers);
-		self.tabPageInputs.Controls.Remove(self.buttonLed);
-		for i in range(0,16):
-			#channel name labels
-			tb=TextBox();
-			self.DublicateControl(tb, self.textBoxInputName, i, offset);
-			tb.Text = "Input " + str(i+1);
-			self.nameBoxes[i] = tb;
-			self.tabPageInputs.Controls.Add(tb);
-			#voltage inputs
-			tb =TextBox();
-			self.DublicateControl(tb, self.textBoxInputLevel, i, offset);
-			self.voltageBoxes[i] = tb;
-			self.tabPageInputs.Controls.Add(tb);
-			#negative input level voltage checkboxes
-			cb =CheckBox();
-			self.DublicateControl(cb, self.checkBoxInvers, i, offset);
-			self.tabPageInputs.Controls.Add(cb);
-			self.negativeBoxes[i] = cb;
-			self.negativeBoxes[i].CheckedChanged +=self.CheckedChanged;
-			#active indicators
-			b =Button();
-			b = self.DublicateControl(b, self.buttonLed, i, offset);
-			self.tabPageInputs.Controls.Add(b);
-			self.ledButtons[i]= b;
-	
-	def DublicateDelays(self):
-		offset = 18;
-		#remove placeholder controls
-		self.tabPageDelay.Controls.Remove(self.textBoxDelay);
-		self.tabPageDelay.Controls.Remove(self.labelDelayName);
-		for i in range(0,16):
-			tb = TextBox();
-			self.DublicateControl(tb, self.textBoxDelay, i, offset);
-			self.tabPageDelay.Controls.Add(tb);
-			self.delayBoxes[i] = tb;
-			lb = Label();
-			self.DublicateControl(lb, self.labelDelayName, i, offset);
-			lb.Text = self.nameBoxes[i].Text;
-			self.tabPageDelay.Controls.Add(lb);
-			self.delayLabels[i] = lb;
-
 	def TryConnect(self):
 		if not self.UsbDllCheck():
 			return
-		self.timer1.Enabled = True
-		self.ttInterface = TTInterface()
-		self.ttInterface.Open(1)
-		self.SwitchGui(True)
-		self.Logic = Logic(self.ttInterface)
-		#read parameters
-		features = self.ttInterface.GetTest().ReadMeasurement(18)
-		self.checkBoxUseLogic.Enabled = (features & 1) != 0
-		self.checkBoxReadTags.Enabled = (features & 2) != 0
-		self.checkBoxSaveTags.Enabled = (features & 2) != 0
-		self.paraHandling.RetransmitData()
+		try:
+			self.ttInterface = TTInterface()
+			self.ttInterface.Open(1)
+			self.SwitchGui(True)
+			self.Logic = Logic(self.ttInterface)
+			#read parameters
+			features = self.ttInterface.GetTest().ReadMeasurement(18)
+			self.checkBoxUseLogic.Enabled = (features & 1) != 0
+			self.checkBoxReadTags.Enabled = (features & 2) != 0
+			self.checkBoxSaveTags.Enabled = (features & 2) != 0
+			self.paraHandling.RetransmitData()
+			self.timer1.Enabled = True
+		except:
+			print("did not find device")
 		self.ShowStatus()
-	
+		
 	#shuts down the connection and does some cleanup
 	def Disconnect(self):
 		self.timer1.Enabled = False
@@ -1255,14 +1220,14 @@ class FormTimetagExplorer(Form):
 			else:
 				self.ttInterface.SetDelay(8, 0)
 			box.Text = (ticks * res).ToString("0.###");
-		elif self.FindCheckBox(box, self.nameBoxes)!= -1:
-			index = self.FindCheckBox(box,self.nameBoxes)
+		elif FindCheckBox(box, self.nameBoxes)!= -1:
+			index = FindCheckBox(box,self.nameBoxes)
 			self.delayLabels[index].Text = box.Text;
-		elif self.FindCheckBox(box, self.voltageBoxes) != -1:
-			index = self.FindCheckBox(box, self.voltageBoxes)
-			volt= self.paraHandling.ReadMinMax(box, -2, 2);
+		elif FindCheckBox(box, self.voltageBoxes) != -1:
+			index = FindCheckBox(box, self.voltageBoxes)
+			volt= paraHandling.ReadMinMax(box, -2, 2);
 			self.ttInterface.SetInputThreshold(index+1, volt);
-		elif self.FindCheckBox(box, self.delayBoxes) != -1:
+		elif FindCheckBox(box, self.delayBoxes) != -1:
 			index = self.FindCheckBox(box, self.delayBoxes)
 			resolution = 5.0 / 32;
 			maxDelay = ((1 << 18) - 1) * resolution;
@@ -1317,17 +1282,25 @@ class FormTimetagExplorer(Form):
 				time = times.Value[i];
 				timeDiff = time - self.OldTime;
 				self.OldTime = time;
+				bin = (int)(timeDiff*1e9/self.minimum_interval);
+				if bin<self.max_bins and bin>0:
+					bins_frequency[bin]+=1
 				ns = timeDiff * self.ttInterface.GetResolution() * 1e9;
 				if (i > 1):
 					self.message += "Channel: " + str(channels.Value[i]) + "  TimeDiff [ns]: " + str(ns) + "\n";      
 		self.richTextBox1.Text = self.message;
+		#if self.tabControl1.SelectedTab == self.tabPageHistogram:
+		#	self.update_histogram(0);
 
 	#put the status in the textbox
 	def ShowStatus(self):
 		self.richTextBox1.Clear();
-		self.richTextBox1.AppendText("FPGA Version:\t" + str(self.ttInterface.GetFpgaVersion()) + "\n");
-		self.richTextBox1.AppendText("Resolution/ps:\t" + str(self.ttInterface.GetResolution() * 1e12) + "\n");
-		self.richTextBox1.AppendText("Errors:\t\t" + self.ttInterface.GetErrorText(self.ttInterface.ReadErrorFlags()) + "\n\n");
+		try:
+			self.richTextBox1.AppendText("FPGA Version:\t" + str(self.ttInterface.GetFpgaVersion()) + "\n");
+			self.richTextBox1.AppendText("Resolution/ps:\t" + str(self.ttInterface.GetResolution() * 1e12) + "\n");
+			self.richTextBox1.AppendText("Errors:\t\t" + self.ttInterface.GetErrorText(self.ttInterface.ReadErrorFlags()) + "\n\n");
+		except:
+			print("Could not read status")
 	#changes the file writing button text
 	def SetButtonText(self):
 		if not self.ttInterface.GetReader().FileSaveMode and not self.ttInterface.GetReader().ConversionMode:
@@ -1358,7 +1331,7 @@ class FormTimetagExplorer(Form):
 	def CheckedChanged(self,sender,e):
 		cb = sender;
 		if type(cb) is CheckBox:
-			index = self.FindCheckBox(cb, self.negativeBoxes)
+			index = FindCheckBox(cb, self.negativeBoxes)
 			if self.ttInterface == None or not self.ttInterface.IsOpen():
 				return;
 			if (cb == self.checkBoxUse10MHz):
@@ -1375,9 +1348,12 @@ class FormTimetagExplorer(Form):
 					self.inversionMask = self.inversionMask & ~(1 << index);
 				self.ttInterface.SetInversionMask(self.inversionMask);
 
-	def FindCheckBox(self, box, nameBoxes):
-		for i in range(0,len(nameBoxes)):
-			if (nameBoxes[i] == box):
-				return i;
-		return -1;
 
+	
+	#updates the value in the histogram
+	def update_histogram(self,blarg):
+		y = Array[float]((self.bins_frequency))
+		myBar = self.histoGraphPane.AddBar( "Curve 1", None, y, Color.Red )
+        #self.myBar.Bar.Fill = Fill( Color.Red, Color.White, Color.Red )
+
+		
