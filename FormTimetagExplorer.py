@@ -25,6 +25,7 @@ from ParaHandling import ParaHandling;
 #this module defines a control for all of the buttons on the Logic tab 
 from LogicChooser import *;
 from WindowsControlsHelperFunctions import *
+from TimeTaggerFunctions import *
 #Now for all the windows things we'll need
 from System import DateTime, Array, Byte;
 from System.Runtime.CompilerServices import StrongBox;
@@ -964,11 +965,11 @@ class FormTimetagExplorer(Form):
 
 	def timer1_Tick(self, sender, event):
 		if self.ttInterface != None:
-			self.ShowErrors();
+			ShowErrors(self);
 		if self.checkBoxReadTags.Checked:
-			self.DoReadTags();
+			DoReadTags(self);
 		elif self.checkBoxSaveTags.Checked:
-			self.DoSaveTags();
+			DoSaveTags(self);
 		
 	#an unused exception handling method, for potential future use, because I haven't figured out how to convert exception handling correctly between C# and python...
 	def HandleException(ex):
@@ -999,7 +1000,7 @@ class FormTimetagExplorer(Form):
 			self.startTime = DateTime.Now;
 			self.ttInterface.StartTimetags();
 			self.ttInterface.GetReader().StartSaving(self.rawFileName.Text);
-			self.SetButtonText();
+			SetButtonText(self);
 			self.richTextBox1.Clear();
 			self.richTextBox1.AppendText("Reading data....\n");
 		elif self.ttInterface.GetReader().FileSaveMode:
@@ -1009,7 +1010,7 @@ class FormTimetagExplorer(Form):
 			self.ttInterface.GetReader().StartConverting(self.outputFileName.Text);
 			self.conversionRunning = True;
 			self.SetButtonText();
-			self.ShowRate();
+			ShowRate(self);
 			self.richTextBox1.AppendText("Converting....\n");
 
 	def buttonReadUsb_Click(self, sender, event):        
@@ -1023,7 +1024,7 @@ class FormTimetagExplorer(Form):
 		self.LogicTimer();
 
 	def LogicTimer(self):
-		self.ShowErrors();
+		ShowErrors(self);
 		self.Logic.ReadLogic();
 		tmCount = self.Logic.GetTimeCounter();
 		self.message += String.Format("0,101,10:0.###\n\n", "Cycle / ms", tmCount / 200000.0);
@@ -1106,11 +1107,10 @@ class FormTimetagExplorer(Form):
 			self.paraHandling.MarkNoSave(c);
 		self.paraHandling.MarkNoSave(self.checkBoxEdgeGate);
 		#Thomas Lehner originally wrote a ParaHandling class to handle the event handling for the repeated checkboxes etc, but it currently doesn't work because IronPython doesn't like EventHandlers as used by C#. In future, I could replace this with Python Event handlers, but at the moment it's easier just to force the functions to be forceably attached to their event handlers
-		#self.paraHandling.OnCheckedChanged += self.CheckedChanged;
 		#self.paraHandling.OnTransmitValue += EventHandler(self.TransmitValue(),self.checkBoxEdgeGate);
 		#Directory.SetCurrentDirectory(Environment.GetFolderPath(Environment.SpecialFolder.Personal));
 		self.InitialText = Text;
-		self.SwitchGui(False);
+		SwitchGui(self,False);
 		self.paraHandling.LoadData(self.ParaFileName);
 		
 	def FormTimetagDemo_FormClosed(self, sender, event):
@@ -1127,7 +1127,7 @@ class FormTimetagExplorer(Form):
 		try:
 			self.ttInterface = TTInterface()
 			self.ttInterface.Open(1)
-			self.SwitchGui(True)
+			SwitchGui(self,True)
 			self.Logic = Logic(self.ttInterface)
 			#read parameters
 			features = self.ttInterface.GetTest().ReadMeasurement(18)
@@ -1138,7 +1138,7 @@ class FormTimetagExplorer(Form):
 			self.timer1.Enabled = True
 		except:
 			print("did not find device")
-		self.ShowStatus()
+		ShowStatus(self)
 		
 	#shuts down the connection and does some cleanup
 	def Disconnect(self):
@@ -1147,26 +1147,8 @@ class FormTimetagExplorer(Form):
 		#DisableOtherModes(None)
 		self.ttInterface.Close()
 		self.ttInterface = None
-		self.SwitchGui(False)
+		SwitchGui(self,False)
 
-	#this method controls the labels on the Connect and Calibrate buttons and allows controls to be enabled
-	def SwitchGui(self,p):
-		self.tabControl1.Enabled = p
-		self.labelErrors.Enabled = p
-		self.buttonCalibrate.Enabled = p
-		self.calibrateToolStripMenuItem.Enabled = p
-		self.infoToolStripMenuItem1.Enabled = p
-		#self.Text = InitialText
-		if p:
-		#	self.Text = Text+ " (Connected)"
-			self.connectToolStripMenuItem.Text = "Disconnect"
-			self.buttonConnect.Text = "Disconnect"
-		else:
-		#	self.Text = Text + " (Disconnected))"
-			self.connectToolStripMenuItem.Text = "Connect"
-			self.buttonConnect.Text = "Connect"
-			self.calibrateToolStripMenuItem.Text= "Calibrate"
-			self.buttonCalibrate.Text = "Calibrate"
 			
 	def UsbDllCheck(self):        
 		try:
@@ -1245,109 +1227,6 @@ class FormTimetagExplorer(Form):
 			self.ParaFileName = self.openFileDialog1.FileName;
 			self.paraHandling.LoadData(self.ParaFileName);
 			
-	#reads error messages from the timetagger and prints them on the screen
-	def ShowErrors(self):
-		flags = self.ttInterface.ReadErrorFlags();
-		if (flags == 0):
-			self.labelErrors.Text = "Errors: (none)";
-		else:
-			self.labelErrors.Text = "Errors: " + self.ttInterface.GetErrorText(flags);
-	
-	#Read which channels are active, then display the tags.
-	def DoReadTags(self):
-		self.checkBoxLevelGateActive.Checked = self.ttInterface.LevelGateActive();
-		self.DisplayTags();
-	
-	#save the tags to a file
-	def DoSaveTags(self):
-		self.SetButtonText();
-		if self.conversionRunning:
-			self.ShowRate();
-			if not self.ttInterface.GetReader().ConversionMode:
-				self.conversionRunning = False;
-			self.richTextBox1.AppendText("Finished !!\n");
-	
-	#display the tags in the textbox
-	def DisplayTags(self):
-		#ReadTags needs a pointer to an array of bytes and an array of integers... do do this we generate a reference to the clr datatype
-		channels = clr.Reference[Array[Byte]]();
-		times =clr.Reference[Array[Int64]]();
-		count = self.ttInterface.ReadTags(channels,times);
-		if (count == 0):
-			self.message = "No Tags\n";
-		else:
-			displayCount = min(count, 100);
-			for i in range(0,displayCount):
-				#because times is now a pointer and not an array, we have to subscript it using the "value"
-				time = times.Value[i];
-				timeDiff = time - self.OldTime;
-				self.OldTime = time;
-				bin = (int)(timeDiff*1e9/self.minimum_interval);
-				if bin<self.max_bins and bin>0:
-					bins_frequency[bin]+=1
-				ns = timeDiff * self.ttInterface.GetResolution() * 1e9;
-				if (i > 1):
-					self.message += "Channel: " + str(channels.Value[i]) + "  TimeDiff [ns]: " + str(ns) + "\n";      
-		self.richTextBox1.Text = self.message;
-		#if self.tabControl1.SelectedTab == self.tabPageHistogram:
-		#	self.update_histogram(0);
-
-	#put the status in the textbox
-	def ShowStatus(self):
-		self.richTextBox1.Clear();
-		try:
-			self.richTextBox1.AppendText("FPGA Version:\t" + str(self.ttInterface.GetFpgaVersion()) + "\n");
-			self.richTextBox1.AppendText("Resolution/ps:\t" + str(self.ttInterface.GetResolution() * 1e12) + "\n");
-			self.richTextBox1.AppendText("Errors:\t\t" + self.ttInterface.GetErrorText(self.ttInterface.ReadErrorFlags()) + "\n\n");
-		except:
-			print("Could not read status")
-	#changes the file writing button text
-	def SetButtonText(self):
-		if not self.ttInterface.GetReader().FileSaveMode and not self.ttInterface.GetReader().ConversionMode:
-			self.buttonSaveStart.Text = "Start";
-		elif self.ttInterface.GetReader().FileSaveMode:
-			self.buttonSaveStart.Text = "Stop";
-		elif self.ttInterface.GetReader().ConversionMode:
-			self.buttonSaveStart.Text = "Converting.....";
-	
-	#calculates the timetag rates for the file writing tab, calculates the percentage that were caught
-	def ShowRate(self):
-		diff = DateTime.Now - self.startTime;
-		msecs = diff.TotalMilliseconds;
-		tags = self.ttInterface.GetReader().SavedTags;
-		rate = (tags / msecs);
-		self.labelSize.Text = "ktags:" + (tags/1000.0).ToString("0.###");
-		self.labelRate.Text = "ktags/sec:" + rate.ToString("0.###");
-		percent = 0;
-		if (self.tempTags > 0):
-			percent = int(100 * tags / self.tempTags);
-		else:
-			percent = 100;
-		if not self.ttInterface.GetReader().ConversionMode:
-			percent = 100;
-		self.labelPercent.Text = "percent: " + str(percent);
-	
-	#turns the values of the checkboxes into an inversionMask to send the parameters to the timetagger
-	def CheckedChanged(self,sender,e):
-		cb = sender;
-		if type(cb) is CheckBox:
-			index = FindCheckBox(cb, self.negativeBoxes)
-			if self.ttInterface == None or not self.ttInterface.IsOpen():
-				return;
-			if (cb == self.checkBoxUse10MHz):
-				self.ttInterface.Use10MHz(cb.Checked);
-			elif (cb == self.checkBoxEdgeGate):
-				self.groupBoxEdgeGate.Enabled = self.checkBoxEdgeGate.Checked;
-				self.ttInterface.UseTimetagGate(self.checkBoxEdgeGate.Checked);
-			elif (cb == self.checkBoxUseLevelGate):
-				self.ttInterface.UseLevelGate(cb.Checked);
-			elif (index != -1):
-				if (cb.Checked):
-					self.inversionMask = self.inversionMask | (1 << index);
-				else:
-					self.inversionMask = self.inversionMask & ~(1 << index);
-				self.ttInterface.SetInversionMask(self.inversionMask);
-
 
 	
 	#updates the value in the histogram
@@ -1355,5 +1234,24 @@ class FormTimetagExplorer(Form):
 		y = Array[float]((self.bins_frequency))
 		myBar = self.histoGraphPane.AddBar( "Curve 1", None, y, Color.Red )
         #self.myBar.Bar.Fill = Fill( Color.Red, Color.White, Color.Red )
-
 		
+	#turns the values of the checkboxes into an inversionMask to send the parameters to the timetagger
+	def CheckedChanged(form,sender,e):
+		cb = sender;
+		if type(cb) is CheckBox:
+			index = FindCheckBox(cb, form.negativeBoxes)
+			if form.ttInterface == None or not form.ttInterface.IsOpen():
+				return;
+			if (cb == form.checkBoxUse10MHz):
+				form.ttInterface.Use10MHz(cb.Checked);
+			elif (cb == form.checkBoxEdgeGate):
+				form.groupBoxEdgeGate.Enabled = form.checkBoxEdgeGate.Checked;
+				form.ttInterface.UseTimetagGate(form.checkBoxEdgeGate.Checked);
+			elif (cb == form.checkBoxUseLevelGate):
+				form.ttInterface.UseLevelGate(cb.Checked);
+			elif (index != -1):
+				if (cb.Checked):
+					form.inversionMask = form.inversionMask | (1 << index);
+				else:
+					form.inversionMask = form.inversionMask & ~(1 << index);
+				form.ttInterface.SetInversionMask(form.inversionMask);

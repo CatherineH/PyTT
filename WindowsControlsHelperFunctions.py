@@ -3,6 +3,7 @@ clr.AddReference("System.Windows.Forms")
 from System.Windows.Forms import Application, AutoScaleMode, DialogResult, FormBorderStyle, FormWindowState, SizeGripStyle, ToolStrip, ToolStripItem, Padding, AnchorStyles, Form, Button, RichTextBox, Timer, CheckBox, SaveFileDialog, Label, TextBox, GroupBox, TabControl, TabPage, ToolTip, ToolStripMenuItem, MenuStrip, Screen, ToolStripItem, OpenFileDialog;
 #this module defines a control for all of the buttons on the Logic tab 
 from LogicChooser import *;
+from TimeTaggerFunctions import *;
 
 #copies the control
 def DublicateControl(dest,source, i, offset):
@@ -102,4 +103,22 @@ def FindCheckBox(form, box, nameBoxes):
 
 	return -1;
 	
-	
+
+#this method controls the labels on the Connect and Calibrate buttons and allows controls to be enabled
+def SwitchGui(form,p):
+	form.tabControl1.Enabled = p
+	form.labelErrors.Enabled = p
+	form.buttonCalibrate.Enabled = p
+	form.calibrateToolStripMenuItem.Enabled = p
+	form.infoToolStripMenuItem1.Enabled = p
+	#form.Text = InitialText
+	if p:
+	#	form.Text = Text+ " (Connected)"
+		form.connectToolStripMenuItem.Text = "Disconnect"
+		form.buttonConnect.Text = "Disconnect"
+	else:
+	#	form.Text = Text + " (Disconnected))"
+		form.connectToolStripMenuItem.Text = "Connect"
+		form.buttonConnect.Text = "Connect"
+		form.calibrateToolStripMenuItem.Text= "Calibrate"
+		form.buttonCalibrate.Text = "Calibrate"	
