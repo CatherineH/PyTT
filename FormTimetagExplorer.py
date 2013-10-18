@@ -44,10 +44,12 @@ class FormTimetagExplorer(Form):
 		self.inversionMask = 0;
 		self.choosers = [];
 		self.ModeList = [];
+		self.Labview = False;
 		#message that appears in the textbox
 		self.message = "";
 		#maxPattern defines the number of channels on the timetag unit
 		self.MaxPattern = 16;
+		
 		#several tabs have duplicate controls, which are stored in lists
 		self.patternRateLabels = [1]*(self.MaxPattern+1);
 		self.nameBoxes = [1]*(self.MaxPattern+1);
@@ -60,6 +62,7 @@ class FormTimetagExplorer(Form):
 		self.logicChooser1 = LogicChooser();
 		self.components = Container();
 		self.buttonConnect = Button();
+		self.buttonLabview = Button();
 		self.richTextBox1 =  RichTextBox();
 		#every time Timer1 ticks, the timetags are read
 		self.timer1 =  Timer(self.components);
@@ -152,19 +155,28 @@ class FormTimetagExplorer(Form):
 		self.max_bins = 100;
 		self.bins_frequency =[0]*self.max_bins;
 		#self.myBar;
-		
-		
+				
 		#now for all of the VisualStudio generated designer code
 		    # 
 		    # buttonConnect
 		    # 
 		self.buttonConnect.Location =  Point(18, 33);
 		self.buttonConnect.Name = "buttonConnect";
-		self.buttonConnect.Size =  Size(75, 23);
+		self.buttonConnect.Size =  Size(75, 23);		
 		self.buttonConnect.TabIndex = 0;
 		self.buttonConnect.Text = "Connect";
 		self.buttonConnect.UseVisualStyleBackColor = True;
 		self.buttonConnect.Click +=  self.buttonConnect_Click;
+				    # 
+		    # buttonConnect
+		    # 
+		self.buttonLabview.Location =  Point(308, 33);
+		self.buttonLabview.Name = "buttonLabview";
+		self.buttonLabview.Size =  Size(75, 23);		
+		self.buttonLabview.TabIndex = 0;
+		self.buttonLabview.Text = "Labview";
+		self.buttonLabview.UseVisualStyleBackColor = True;
+		self.buttonLabview.Click +=  self.buttonLabview_Click;
 		    # 
 		    # richTextBox1
 		    # 
@@ -227,7 +239,9 @@ class FormTimetagExplorer(Form):
 		self.label3.AutoSize = True;
 		self.label3.Location =  Point(6, 44);
 		self.label3.Name = "label3";
-		self.label3.Size =  Size(83, 13);
+		#self.label3.Size =  Size(83, 13);
+		self.label3.Size =  Size(160, 20);
+		
 		self.label3.TabIndex = 14;
 		self.label3.Text = "GatePosition/ns";
 		    # 
@@ -850,20 +864,21 @@ class FormTimetagExplorer(Form):
 		    # 
 		    # FormTimetagExplorer
 		    # 
-		self.AutoScaleDimensions =  Size(6, 13);
+		self.AutoScaleDimensions =  Size(1, 2);
 		self.AutoScaleMode = AutoScaleMode.Font;
-		#self.ClientSize =  Size(881, 448);
+		self.ClientSize =  Size(881, 448);
 		self.Controls.Add(self.tabControl1);
 		self.Controls.Add(self.richTextBox1);
 		self.Controls.Add(self.buttonCalibrate);
 		self.Controls.Add(self.labelErrors);
 		self.Controls.Add(self.buttonConnect);
+		self.Controls.Add(self.buttonLabview);
 		self.Controls.Add(self.menuStrip1);
 		self.MainMenuStrip = self.menuStrip1;
 		#self.MaximizeBox = False;
 		#self.MaximumSize =  Size(1500, 958);
 		self.Name = "FormTimetagExplorer";
-		self.SizeGripStyle = SizeGripStyle.Hide;
+		#self.SizeGripStyle = SizeGripStyle.Hide;
 		self.Text = "PyTT";
 		self.Load +=  self.FormTimetagDemo_Load;
 		self.FormClosed +=  self.FormTimetagDemo_FormClosed;
@@ -953,6 +968,10 @@ class FormTimetagExplorer(Form):
 
 	def buttonCalibrate_Click(self, sender, event):
 		self.Calibrate();
+	
+	def buttonLabview_Click(self, sender, event):
+		self.Labview = switchLabview(self, self.Labview)
+
         
 	def Calibrate(self):
 		#DisableOtherModes(None);
@@ -1086,7 +1105,8 @@ class FormTimetagExplorer(Form):
 	def FormTimetagDemo_Load(self, sender, event):
 		#self.TopMost = True;
 		#self.FormBorderStyle = FormBorderStyle.None;
-		self.WindowState = FormWindowState.Maximized;
+		#self.WindowState = FormWindowState.Maximized;
+		self.WindowState = FormWindowState.Normal;
 		self.tabControl1.TabPages.Remove(self.tabPageDebug);
 		self.tabControl1.Size =  Size(self.Width/2, self.Height-62);
 		self.richTextBox1.Location =  Point(self.Width/2+30, 84);

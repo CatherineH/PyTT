@@ -122,3 +122,16 @@ def SwitchGui(form,p):
 		form.buttonConnect.Text = "Connect"
 		form.calibrateToolStripMenuItem.Text= "Calibrate"
 		form.buttonCalibrate.Text = "Calibrate"	
+
+#switches the form to labview - large fonts, bolder colours		
+def switchLabview(form,labview):
+	newFontSize = 18;
+	oldFontSize = 8.25;
+	if not labview:
+		form.Font = Font("Microsoft Sans Serif", newFontSize, FontStyle.Regular, GraphicsUnit.Point, 0);
+		labview = True;
+	else:
+		form.Font = Font("Microsoft Sans Serif", oldFontSize, FontStyle.Regular, GraphicsUnit.Point, 0);
+		labview = False;
+	return labview	
+		
